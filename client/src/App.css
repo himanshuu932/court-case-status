@@ -1,0 +1,110 @@
+/* custom-theme.css */
+
+/* Apply selection styling */
+::selection {
+  background: #ffe799;
+  color: #9b0620;
+}
+
+body {
+  background-color: #fff;
+  color: #9b0620;
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 1rem;
+  background-color: #ffffff;
+  border: 2px solid #9b0620;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+h2,
+h3,
+h4 {
+  color: #9b0620;
+}
+
+/* Horizontal form styling */
+.form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.form label {
+  display: flex;
+  align-items: center;
+  margin: 0.5rem;
+  flex: 1;
+  white-space: nowrap;
+}
+
+.form label input[type="text"],
+.form label select {
+  margin-left: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid #9b0620;
+  border-radius: 4px;
+  flex: 1;
+}
+
+.form button {
+  padding: 0.75rem 1.5rem;
+  background-color: #9b0620;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.form button:hover {
+  opacity: 0.8;
+}
+
+.note {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.results {
+  margin-top: 2rem;
+}
+
+.block {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  border: 1px solid #9b0620;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+  border: 1px solid #9b0620;
+  padding: 0.5rem;
+  text-align: left;
+}
+
+.data-table th {
+  background-color: #ffe799;
+  color: #9b0620;
+}
+
+.plain-text {
+  white-space: pre-wrap;
+  font-family: "Courier New", Courier, monospace;
+}

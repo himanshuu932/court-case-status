@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        /* Center the loader on the page */
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0; /* Optional: for better visibility */
+        }
+
+        .loader {
+            height: 50px;
+            width:100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .dot-one,
+        .dot-three {
+            background-color: black;
+            height: 30px;
+            width: 20px;
+            border-radius: 50%;
+            text-align: center;
+            animation: flap-wings 1s infinite ease-in-out;
+        }
+
+        .dot-two {
+            height: 160px;
+            width: 160px;
+            border-radius: 10%;
+            background-image: url('chat.png'); /* Use a relative path to the image */
+            background-size: cover; /* Ensures the image covers the dot */
+            background-position: center; /* Centers the image */
+            animation: flap-wings 1s infinite ease-in-out;
+            animation-delay: 0.1s;
+        }
+
+        @keyframes flap-wings {
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-20px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="loader">
+        <div class="dot-one"></div>
+        <div class="dot-two"></div> <!-- Image will be displayed here -->
+        <div class="dot-three"></div>
+    </div>
+</body>
+</html>
