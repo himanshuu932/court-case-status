@@ -1,3 +1,5 @@
+require("dotenv").config(); // Load environment variables from .env file
+
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
@@ -8,7 +10,10 @@ const axios = require("axios");
 const app = express();
 const port = 3001;
 
-// Enable CORS and parse JSON bodies
+// Use environment variable for the Anti-Captcha API key.
+const ANTICAPTCHA_API_KEY = process.env.ANTICAPTCHA_API_KEY;
+
+// Enable CORS and parse JSON bodies.
 app.use(cors());
 app.use(bodyParser.json());
 
@@ -17,7 +22,11 @@ app.use(bodyParser.json());
 // -----------------------
 const courtOptions = [
   { index: 0, value: "", text: "Select Court Complex" },
-  { index: 1, value: "DLNE01,DLNE02,DLNE03,DLNE04", text: "Karkardooma Court Complex" }
+  {
+    index: 1,
+    value: "DLNE01,DLNE02,DLNE03,DLNE04",
+    text: "Karkardooma Court Complex",
+  },
 ];
 
 const caseTypeOptions = [
@@ -89,17 +98,22 @@ const caseTypeOptions = [
   { index: 65, value: "13", text: "SUCCESSION COURT" },
   { index: 66, value: "87", text: "TC" },
   { index: 67, value: "85", text: "T. P. Civil" },
-  { index: 68, value: "86", text: "T. P. Crl." }
+  { index: 68, value: "86", text: "T. P. Crl." },
 ];
 
 // -----------------------
 // Manual CAPTCHA Helper
 // -----------------------
+/**
+ * Prompts the user with a question via the console.
+ * @param {string} question - The question to ask.
+ * @returns {Promise<string>} - The user's input.
+ */
 function askQuestion(question) {
   return new Promise((resolve) => {
     const rl = readline.createInterface({
       input: process.stdin,
-      output: process.stdout
+      output: process.stdout,
     });
     rl.question(question, (answer) => {
       rl.close();
@@ -107,7 +121,12 @@ function askQuestion(question) {
     });
   });
 }
-const ANTICAPTCHA_API_KEY = "69dadd6f725af218ffeea23d99926214";
+
+/**
+ * Solves a CAPTCHA using Anti-Captcha's ImageToTextTask.
+ * @param {string} imagePath - Path to the CAPTCHA image.
+ * @returns {Promise<string|null>} - The solved CAPTCHA text or null if failed.
+ */
 async function solveCaptchaWithAntiCaptcha(imagePath) {
   const imageData = fs.readFileSync(imagePath, { encoding: "base64" });
   const createTaskPayload = {
@@ -120,7 +139,10 @@ async function solveCaptchaWithAntiCaptcha(imagePath) {
 
   let createResponse;
   try {
-    createResponse = await axios.post("https://api.anti-captcha.com/createTask", createTaskPayload);
+    createResponse = await axios.post(
+      "https://api.anti-captcha.com/createTask",
+      createTaskPayload
+    );
   } catch (err) {
     console.error("Error creating Anti-Captcha task:", err.message);
     return null;
@@ -130,13 +152,15 @@ async function solveCaptchaWithAntiCaptcha(imagePath) {
     return null;
   }
   const taskId = createResponse.data.taskId;
-  console.log("Anti-Captcha task created:", taskId);
   const getTaskPayload = { clientKey: ANTICAPTCHA_API_KEY, taskId };
   for (let i = 0; i < 30; i++) {
     await delay(5000);
     let getResponse;
     try {
-      getResponse = await axios.post("https://api.anti-captcha.com/getTaskResult", getTaskPayload);
+      getResponse = await axios.post(
+        "https://api.anti-captcha.com/getTaskResult",
+        getTaskPayload
+      );
     } catch (err) {
       console.error("Error fetching Anti-Captcha result:", err.message);
       return null;
@@ -148,20 +172,28 @@ async function solveCaptchaWithAntiCaptcha(imagePath) {
     if (getResponse.data.status === "ready") {
       return getResponse.data.solution.text;
     }
-    console.log("Anti-Captcha: waiting for solution...");
   }
-  console.log("Timed out waiting for Anti-Captcha solution.");
   return null;
-}
-/******************************************************
- * Helper: Delay Function
- ******************************************************/
-function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /******************************************************
- * Type Slowly for Input Fields (Simulating Keystrokes)
+ * Helper: Delay Function
+ * Delays execution for a specified number of milliseconds.
+ * @param {number} ms - Milliseconds to delay.
+ * @returns {Promise<void>}
+ ******************************************************/
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/******************************************************
+ * Helper: Simulated Typing
+ * Types text into an input field with a simulated keystroke delay.
+ * @param {object} page - Puppeteer page instance.
+ * @param {string} selector - Input field selector.
+ * @param {string} text - Text to type.
+ * @param {number} delayMs - Delay between keystrokes (default 100ms).
+ * @returns {Promise<void>}
  ******************************************************/
 async function typeSlowly(page, selector, text, delayMs = 100) {
   await page.click(selector, { clickCount: 3 });
@@ -173,115 +205,92 @@ async function typeSlowly(page, selector, text, delayMs = 100) {
 
 /******************************************************
  * Main Puppeteer Flow with Manual CAPTCHA Input
- * Accepts parameters from the frontend.
+ * @param {Object} params - Parameters from the frontend.
+ * @param {string} params.courtIndex - Selected court index.
+ * @param {string} params.caseIndex - Selected case type index.
+ * @param {string|number} params.caseNumber - Case number.
+ * @param {string|number} params.caseYear - Case year.
+ * @returns {Promise<string>} - The final case details.
  ******************************************************/
 async function fetchCaseDetailsManualCaptcha({ courtIndex, caseIndex, caseNumber, caseYear }) {
   const browser = await puppeteer.launch({
-    headless: false, // Visible browser for manual CAPTCHA entry
+    headless: true,
     defaultViewport: null,
   });
   const page = await browser.newPage();
 
-  console.log("Navigating to the case status page...");
-  await page.goto("https://northeast.dcourts.gov.in/case-status-search-by-case-number/", {
-    waitUntil: "networkidle2",
-  });
+  await page.goto(
+    "https://northeast.dcourts.gov.in/case-status-search-by-case-number/",
+    { waitUntil: "networkidle2" }
+  );
 
-  // Look up dropdown values from our arrays using the provided indices
+  // Look up dropdown values using provided indices.
   const selectedCourt = courtOptions[parseInt(courtIndex, 10)];
   const selectedCaseType = caseTypeOptions[parseInt(caseIndex, 10)];
 
   if (!selectedCourt || !selectedCourt.value) {
-    console.error("Invalid court option selected.");
     await browser.close();
-    return;
+    throw new Error("Invalid court option selected.");
   }
   if (!selectedCaseType || !selectedCaseType.value) {
-    console.error("Invalid case type option selected.");
     await browser.close();
-    return;
+    throw new Error("Invalid case type option selected.");
   }
 
-  console.log("Selecting court complex using value:", selectedCourt.value);
   await page.select("#est_code", selectedCourt.value);
-  console.log("Court complex selected.");
   await delay(2000);
 
-  console.log("Enabling and selecting case type using value:", selectedCaseType.value);
+  // Enable and select the case type.
   await page.evaluate(() => {
     const select = document.getElementById("case_type");
     if (select && select.disabled) select.disabled = false;
   });
   await page.select("#case_type", selectedCaseType.value);
-  console.log("Case type selected.");
   await delay(2000);
 
-  // Type the case number and year using simulated keystrokes
-  console.log("Typing case number...");
+  // Type the case number and year using simulated keystrokes.
   await typeSlowly(page, "#reg_no", caseNumber.toString(), 200);
   await delay(1000);
-  const typedRegNo = await page.$eval("#reg_no", el => el.value);
-  console.log("Case number typed as:", typedRegNo);
-
-  console.log("Typing case year...");
   await typeSlowly(page, "#reg_year", caseYear.toString(), 200);
   await delay(1000);
-  const typedRegYear = await page.$eval("#reg_year", el => el.value);
-  console.log("Case year typed as:", typedRegYear);
 
   // --- Manual CAPTCHA Step ---
-  // Capture the CAPTCHA image so you can view it
-    // Capture the CAPTCHA image, solve it, and paste the solution
-    const captchaEl = await page.waitForSelector("#siwp_captcha_image_0", { visible: true });
-    await captchaEl.screenshot({ path: "captcha.png" });
-    console.log("CAPTCHA image saved as captcha.png");
-  
-    const captchaSolution = await solveCaptchaWithAntiCaptcha("captcha.png");
-    if (!captchaSolution) {
-      console.log("No CAPTCHA solution returned. Exiting.");
-      await browser.close();
-      return;
-    }
-    console.log("Anti-Captcha returned:", captchaSolution);
-  
-    // Paste the CAPTCHA solution into the input field
-    await page.evaluate((selector, value) => {
-      const el = document.querySelector(selector);
-      if (el) el.value = value;
-    }, "#siwp_captcha_value_0", captchaSolution);
-    const finalCaptcha = await page.$eval("#siwp_captcha_value_0", el => el.value);
-    console.log("CAPTCHA input in DOM is:", finalCaptcha);
-  
-  // --- SUBMIT THE FORM ---
-  console.log("Clicking submit button now...");
+  // Capture the CAPTCHA image and solve it.
+  const captchaEl = await page.waitForSelector("#siwp_captcha_image_0", { visible: true });
+  await captchaEl.screenshot({ path: "captcha.png" });
+  const captchaSolution = await solveCaptchaWithAntiCaptcha("captcha.png");
+  if (!captchaSolution) {
+    await browser.close();
+    throw new Error("CAPTCHA solution not returned.");
+  }
+  // Paste the CAPTCHA solution into the input field.
+  await page.evaluate((selector, value) => {
+    const el = document.querySelector(selector);
+    if (el) el.value = value;
+  }, "#siwp_captcha_value_0", captchaSolution);
+
+  // --- Submit the Form ---
   await page.click('input[name="submit"]');
-  console.log("Form submitted. Waiting for result page...");
   await delay(5000);
 
-  // --- FETCH RESULT DETAILS ---
-  // Wait for the results container to appear
+  // --- Fetch Result Details ---
   await page.waitForSelector(".resultsHolder.servicesResultsContainer", { visible: true });
   
-  // Click any "View" links (not buttons) to reveal additional details
+  // Click the "View" link to reveal additional details.
   await page.evaluate(() => {
     const viewLinks = Array.from(document.querySelectorAll("a.viewCnrDetails"));
-    viewLinks.forEach(link => link.click());
+    if (viewLinks.length > 0) {
+      viewLinks[0].click();
+    }
   });
-  await delay(2000);
-  console.log('Clicked on "View" links if any were found.');
   
-  // Extract details from the detailed results container
+  await delay(6000);
+
   let finalResults = "";
   try {
-    finalResults = await page.$eval("#cnrResultsDetails", el => el.innerText);
+    finalResults = await page.$eval("#cnrResultsDetails", (el) => el.innerText);
   } catch (err) {
-    console.log("Error fetching #cnrResultsDetails:", err.message);
-  }
-  
-  if (finalResults && !finalResults.includes("No case details found")) {
-    console.log("\nFinal Case Details:\n", finalResults);
-  } else {
-    console.log("\nEither CAPTCHA was incorrect or no case details found.");
+    // Handle error if results cannot be fetched.
   }
 
   await browser.close();
@@ -291,17 +300,19 @@ async function fetchCaseDetailsManualCaptcha({ courtIndex, caseIndex, caseNumber
 /******************************************************
  * Express Route: POST /run-case
  * Receives JSON from the frontend, runs the Puppeteer flow,
- * and returns the results.
+ * and returns the case details.
  ******************************************************/
 app.post("/run-case", async (req, res) => {
-  console.log("Backend - Received data from frontend:", req.body);
   const { courtIndex, caseIndex, caseNumber, caseYear } = req.body;
-
   try {
-    const caseDetails = await fetchCaseDetailsManualCaptcha({ courtIndex, caseIndex, caseNumber, caseYear });
+    const caseDetails = await fetchCaseDetailsManualCaptcha({
+      courtIndex,
+      caseIndex,
+      caseNumber,
+      caseYear,
+    });
     res.json({ success: true, caseDetails });
   } catch (error) {
-    console.error("Error in Puppeteer automation:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

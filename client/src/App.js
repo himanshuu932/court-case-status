@@ -1,66 +1,31 @@
 import React, { useState, useEffect } from "react";
 import "./App.css";
 
+/**
+ * Main App component for the Court Case Fetcher.
+ *
+ * @component
+ * @returns {JSX.Element} The rendered App component.
+ */
 function App() {
-  // Dropdown data (fetched or hardcoded)
+  // State variables for dropdown options.
   const [courtOptions, setCourtOptions] = useState([]);
   const [caseTypeOptions, setCaseTypeOptions] = useState([]);
 
-  // User selections and results
+  // State variables for user selections and results.
   const [selectedCourtIndex, setSelectedCourtIndex] = useState("");
   const [selectedCaseIndex, setSelectedCaseIndex] = useState("");
   const [caseNumber, setCaseNumber] = useState("");
   const [caseYear, setCaseYear] = useState("");
   const [rawResults, setRawResults] = useState("");
 
-  const [testRaw, setTestRaw] = useState(
-    `District and Sessions Judge, North-East, KKD
-Case Details
-Case Type       Filing Number   Filing Date     Registration Number     Registration Date       CNR Number
-CS - CIVIL SUIT FOR DJ ADJ      224/2024        14-02-2024      40/2024        14-02-2024      DLNE010004352024
-Case Status
-First Hearing Date      Decision Date   Case Status     Nature of Disposal      Court Number and Judge
-16-February-2024        23-September-2024       Case Disposed   Uncontested - DISMISSED AS WITHDRAWN    429-District Judge
-Petitioner and Advocate
+  // Loading and error states for fetch operations and form validation.
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-1) RAJ KUMAR SINGH
-
-Advocate - Gaurav Kumar Sharma
-Respondent and Advocate
-
-1) RANJIT FIN TRADE PRIVATE LIMITED
-
-2) REGISTRAR/SUB-REGISTRAR
-
-Acts
-Under Act(s)    Under Section(s)
-Civil Procedure Code 1908       DECLARATION, CANCEL
-Case History
-Registration Number     Judge   Business On Date        Hearing Date    Purpose of hearing
-40/2024        District Judge      16-02-2024      08-04-2024      Misc. cases
-40/2024        District Judge      08-04-2024      04-06-2024      Misc. cases
-40/2024        District Judge      04-06-2024      16-07-2024      Misc. cases
-40/2024        District Judge      16-07-2024      23-07-2024      Misc. cases
-40/2024        District Judge      23-07-2024      29-07-2024      Misc. cases
-40/2024        District Judge      29-07-2024      23-09-2024      Misc. cases
-40/2024        District Judge      23-09-2024              Disposed
-Orders
-Order Number    Order Date      Order Details
-1       16-02-2024      COPY OF JUDICIAL PROCEEDINGS
-2       04-06-2024      COPY OF ORDER
-3       16-07-2024      COPY OF ORDER
-4       23-07-2024      COPY OF ORDER
-Final Order
-Order Number    Order Date      Order Details
-5       23-09-2024      COPY OF ORDER
-Process Details
-Process id      Process Date    Process title   Party Name      Issued Process
-PDLNE010004352024       16-02-2024      Summons for settlement of issues [O. 5, R. 1, 5.]       RANJIT FIN TRADE PRIVATE LIMITED, Registrar/sub Registrar     0/2`
-  );
-  const handleLoadTestData = () => {
-    setRawResults(testRaw);
-  };
-
+  /**
+   * useEffect hook to load mock dropdown data when the component mounts.
+   */
   useEffect(() => {
     const mockCourtOptions = [
       { index: 0, value: "", text: "Select Court Complex" },
@@ -145,7 +110,12 @@ PDLNE010004352024       16-02-2024      Summons for settlement of issues [O. 5, 
     setCaseTypeOptions(mockCaseTypeOptions);
   }, []);
 
-  // Helper function to split a line into columns.
+  /**
+   * Splits a line into columns based on tab or multiple spaces.
+   *
+   * @param {string} line - The line of text to split.
+   * @returns {string[]} Array of cell values.
+   */
   const splitLine = (line) => {
     if (line.includes("\t")) {
       return line
@@ -159,13 +129,24 @@ PDLNE010004352024       16-02-2024      Summons for settlement of issues [O. 5, 
       .filter((cell) => cell.length > 0);
   };
 
-  // New parser: Splits the raw text into blocks.
+  /**
+   * Parses raw text into structured blocks for display.
+   *
+   * The parser splits the raw text into non-empty lines, then creates blocks
+   * based on predefined markers for table and plain text sections. It processes
+   * each block to extract headers and rows for table blocks.
+   *
+   * @param {string} raw - The raw text to parse.
+   * @returns {Object[]} Array of parsed blocks.
+   */
   const parseRawText = (raw) => {
+    // Split raw text into non-empty lines.
     const lines = raw
       .split("\n")
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
-    // Define markers for table sections and plain-text extra sections.
+
+    // Define markers for table sections and plain text sections.
     const tableMarkers = new Set([
       "Case Details",
       "Case Status",
@@ -175,15 +156,18 @@ PDLNE010004352024       16-02-2024      Summons for settlement of issues [O. 5, 
       "Final Order",
       "Process Details",
     ]);
-    const plainMarkers = new Set(["Petitioner and Advocate", "Respondent and Advocate"]);
+    const plainMarkers = new Set([
+      "Petitioner and Advocate",
+      "Respondent and Advocate",
+    ]);
     const allMarkers = new Set([...tableMarkers, ...plainMarkers]);
 
     let blocks = [];
     let currentBlock = null;
 
+    // Iterate through lines and form blocks based on markers.
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      // If the line is a marker, start a new block.
       if (allMarkers.has(line)) {
         if (currentBlock) {
           blocks.push(currentBlock);
@@ -191,7 +175,7 @@ PDLNE010004352024       16-02-2024      Summons for settlement of issues [O. 5, 
         const type = tableMarkers.has(line) ? "table" : "plain";
         currentBlock = { marker: line, type, lines: [line] };
       } else if (i === 0 && !allMarkers.has(line)) {
-        // The very first line (if not a marker) is treated as a heading.
+        // The first line is treated as a heading if it is not a marker.
         currentBlock = { marker: "Heading", type: "heading", lines: [line] };
       } else {
         if (!currentBlock) {
@@ -205,36 +189,92 @@ PDLNE010004352024       16-02-2024      Summons for settlement of issues [O. 5, 
       blocks.push(currentBlock);
     }
 
-    // Process each block.
+    // Process each block into a structured format.
     const processedBlocks = blocks.map((block) => {
       if (block.type === "table") {
         if (block.lines.length >= 2) {
           const marker = block.marker;
           const headerLine = block.lines[1];
           const headers = splitLine(headerLine);
-          const rows = block.lines.slice(2).map((l) => splitLine(l));
+          const rows = block.lines.slice(2).map((l) => {
+            const row = splitLine(l);
+            // If the row has exactly one cell fewer than the headers,
+            // insert a dash at the penultimate position.
+            if (row.length === headers.length - 1) {
+              row.splice(headers.length - 2, 0, "-");
+            }
+            return row;
+          });
           return { type: "table", title: marker, headers, rows };
         } else {
           return { type: "table", title: block.marker, headers: [], rows: [] };
         }
       } else {
         // For plain and heading blocks, join all lines.
-        return { type: block.type, title: block.marker, content: block.lines.join("\n") };
+        return {
+          type: block.type,
+          title: block.marker,
+          content: block.lines.join("\n"),
+        };
       }
     });
     return processedBlocks;
   };
 
-  // Submit form and retrieve backend result.
+  /**
+   * Validates the form input before submission.
+   *
+   * @returns {boolean} True if the form is valid, otherwise false.
+   */
+  const validateForm = () => {
+    // Validate court complex selection.
+    if (!selectedCourtIndex) {
+      setError("Please select a valid court complex.");
+      return false;
+    }
+    // Validate case type selection.
+    if (!selectedCaseIndex) {
+      setError("Please select a valid case type.");
+      return false;
+    }
+    // Validate case number.
+    if (!caseNumber.trim()) {
+      setError("Please enter a valid case number.");
+      return false;
+    }
+    // Validate case year (ensure it's not empty and is a number).
+    if (!caseYear.trim() || isNaN(caseYear)) {
+      setError("Please enter a valid case year.");
+      return false;
+    }
+    // If all validations pass, clear any existing error and return true.
+    setError("");
+    return true;
+  };
+
+  /**
+   * Handles form submission by validating input and sending the case details to the backend.
+   *
+   * @param {React.FormEvent} e - The form submit event.
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Perform form validation before submitting.
+    if (!validateForm()) {
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
     const data = {
       courtIndex: selectedCourtIndex,
       caseIndex: selectedCaseIndex,
       caseNumber,
       caseYear,
     };
-    console.log("Frontend - Form Details:", data);
+
     try {
       const response = await fetch("http://localhost:3001/run-case", {
         method: "POST",
@@ -242,88 +282,91 @@ PDLNE010004352024       16-02-2024      Summons for settlement of issues [O. 5, 
         body: JSON.stringify(data),
       });
       const result = await response.json();
-      console.log("Frontend - Response from backend:", result);
-      if (result.success) {
+      // Check if the backend response is successful and contains non-empty case details.
+      if (
+        result.success &&
+        result.caseDetails &&
+        result.caseDetails.trim() !== ""
+      ) {
         setRawResults(result.caseDetails);
+      } else {
+        setError("Something went wrong. Please try again.");
       }
     } catch (err) {
-      console.error("Frontend - Error sending data:", err);
+      setError("Error fetching data. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Parse rawResults into blocks.
+  // Parse raw results into blocks for rendering, if available.
   const blocks = rawResults ? parseRawText(rawResults) : [];
 
   return (
     <div className="container">
-      <h2>Case Details Form (React Demo)</h2>
-      <form onSubmit={handleSubmit} className="form">
-        <label>
-          Court Complex:
-          <select value={selectedCourtIndex} onChange={(e) => setSelectedCourtIndex(e.target.value)}>
-            {courtOptions.map((opt) => (
-              <option key={opt.index} value={opt.index}>
-                {opt.text} {opt.value && `(value="${opt.value}")`}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Case Type:
-          <select value={selectedCaseIndex} onChange={(e) => setSelectedCaseIndex(e.target.value)}>
-            {caseTypeOptions.map((opt) => (
-              <option key={opt.index} value={opt.index}>
-                {opt.text} {opt.value && `(value="${opt.value}")`}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Case Number:
-          <input
-            type="text"
-            value={caseNumber}
-            onChange={(e) => setCaseNumber(e.target.value)}
-            placeholder="e.g. 40"
-          />
-        </label>
-        <label>
-          Case Year:
-          <input
-            type="text"
-            value={caseYear}
-            onChange={(e) => setCaseYear(e.target.value)}
-            placeholder="e.g. 2024"
-          />
-        </label>
-        <button type="submit">Submit</button>
-      </form>
+      <div className="container-form">
+        <header>
+          <h1>Court Case Fetcher</h1>
+        </header>
+        <form onSubmit={handleSubmit} className="form">
+          <label>
+            Court Complex:
+            <select
+              value={selectedCourtIndex}
+              onChange={(e) => setSelectedCourtIndex(e.target.value)}
+            >
+              {courtOptions.map((opt) => (
+                <option key={opt.index} value={opt.index}>
+                  {opt.text}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Case Type:
+            <select
+              value={selectedCaseIndex}
+              onChange={(e) => setSelectedCaseIndex(e.target.value)}
+            >
+              {caseTypeOptions.map((opt) => (
+                <option key={opt.index} value={opt.index}>
+                  {opt.text} 
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Case Number:
+            <input
+              type="text"
+              value={caseNumber}
+              onChange={(e) => setCaseNumber(e.target.value)}
+              placeholder="e.g. 40"
+            />
+          </label>
+          <label>
+            Case Year:
+            <input
+              type="text"
+              value={caseYear}
+              onChange={(e) => setCaseYear(e.target.value)}
+              placeholder="e.g. 2024"
+            />
+          </label>
+          <button type="submit">Submit</button>
+        </form>
 
-      <p className="note">
-        <strong>Note:</strong> This demo uses manual CAPTCHA entry. After the Puppeteer browser launches, please complete the CAPTCHA and press Enter in the server console.
-      </p>
-      <div style={{ marginTop: "1rem" }}>
-        <h3>Test Raw Data</h3>
-        <textarea
-          rows="12"
-          style={{ width: "100%", fontFamily: "monospace" }}
-          value={testRaw}
-          onChange={(e) => setTestRaw(e.target.value)}
-        ></textarea>
-        <button style={{ marginTop: "0.5rem" }} onClick={handleLoadTestData}>
-          Load Test Data
-        </button>
+        {loading && (
+          <div className="spinner-container">
+            <div className="spinner"></div>
+          </div>
+        )}
+
+        {error && <div className="error">{error}</div>}
       </div>
-
-
-
-
-
-
 
       {rawResults && (
         <div className="results">
-          <h3>Parsed Case Details</h3>
           {blocks.map((block, idx) => {
             if (block.type === "table") {
               return (
@@ -353,7 +396,7 @@ PDLNE010004352024       16-02-2024      Summons for settlement of issues [O. 5, 
               return (
                 <div key={idx} className="block">
                   {block.type === "heading" ? (
-                    <h3>{block.content}</h3>
+                    <h3 className="heading">{block.content}</h3>
                   ) : (
                     <div>
                       <strong>{block.title}</strong>
